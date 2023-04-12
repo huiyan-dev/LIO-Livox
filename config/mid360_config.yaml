@@ -4,7 +4,7 @@
 # switches
 Lidar_Type: 2    # 0-horizon 2-mid360
 Used_Line: 4    # lines used for lio, set to 1~6
-Feature_Mode: 0    # 0(false) or 1(true)
+Feature_Mode: 0    # 0(false) or 1(true)     # 这个字段暂时没作用，看功能是为了区别特征模式和直接mapping不提特征的模式
 NumCurvSize: 2
 DistanceFaraway: 30 # [m]  <DistanceFaraway near / >DistanceFaraway far
 NumFlat: 3 # nums of one part's flat featurel

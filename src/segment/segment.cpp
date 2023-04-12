@@ -164,6 +164,7 @@ int PCSeg::DoSeg(int *pLabel1, float* fPoints1, int pointNum)
 
 
     free(pLabel2);
+    return 0;
 }
 
 int PCSeg::GetMainVectors(float*fPoints, int* pLabel, int pointNum)
@@ -273,8 +274,7 @@ int PCSeg::EncodeFeatures(float *pFeas)
             pFeas[257*3+256*3+(ii*4+jj)*3+1]=this->pOBBs[ii*8+jj*2+1];
         }
     }
-
-
+    return 0;
 }
 int FilterGndForPos(float* outPoints,float*inPoints,int inNum)
 {
@@ -1056,6 +1056,7 @@ int FreeSeg(float *fPoints,int *pLabel,int pointNum)
     }
     if (pFreeDis != NULL)
         free(pFreeDis);
+    return 0;
 }
 
 

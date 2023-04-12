@@ -4,7 +4,7 @@
 
         <param name="config_file" value="$(find lio_livox)/config/mid360_config.yaml"/>
         <!--0-custom msg ,1 ros sensor msg pointcloud2 msg  -->
-        <param name="msg_type" type="int" value="0"/>
+        <param name="msg_type" type="int" value="1"/>
     </node>
 
     <node pkg="lio_livox" type="PoseEstimation" name="PoseEstimation" output="screen">
