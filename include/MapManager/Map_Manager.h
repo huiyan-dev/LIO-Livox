@@ -5,6 +5,10 @@
 #include <pcl/point_types.h>
 #include <pcl/filters/voxel_grid.h>
 #include <future>
+// for save maps
+#include <ros/ros.h>
+#include "lio_livox/save_map.h"
+#include <pcl/io/pcd_io.h>
 class MAP_MANAGER{
     typedef pcl::PointXYZINormal PointType;
 public:
@@ -63,8 +67,20 @@ public:
      * \param[in] transformTobeMapped: transform matrix of the lidar pose
      */
     void MapMove(const Eigen::Matrix4d& transformTobeMapped);
-
-
+    /** \brief ros service for save point cloud maps
+     
+     */
+    bool saveMapService(lio_livox::save_mapRequest& req, lio_livox::save_mapResponse& res);
+    void setServiceServer(ros::NodeHandle &nh, const std::string &topic);
+    void pushFullCloudMapped(const pcl::PointCloud<PointType>::Ptr &pcd_in) {
+      vFullCloudMapped.push_back(pcd_in);
+    }
+    /**
+     * @brief 地图可视化
+     * 
+     */
+    void visualizeGlobalMapThread();
+    
     size_t FindUsedCornerMap(const PointType *p,int a,int b,int c);
 
     size_t FindUsedSurfMap(const PointType *p,int a,int b,int c);
@@ -128,6 +144,7 @@ private:
     pcl::VoxelGrid<PointType> downSizeFilterCorner;
     pcl::VoxelGrid<PointType> downSizeFilterSurf;
     pcl::VoxelGrid<PointType> downSizeFilterNonFeature;
+    pcl::VoxelGrid<PointType> downSizeFilterFullCloudMapped;
 
     pcl::PointCloud<PointType>::Ptr laserCloudCornerFromMap;
     pcl::PointCloud<PointType>::Ptr laserCloudSurfFromMap;
@@ -154,6 +171,10 @@ private:
 
     int currentUpdatePos = 0;
     int estimatorPos = 0;
+
+    // ros service
+    ros::ServiceServer srvSaveMap;
+    std::vector<pcl::PointCloud<PointType>::Ptr> vFullCloudMapped;
 };
 
 #endif //LIO_LIVOX_MAP_MANAGER_H

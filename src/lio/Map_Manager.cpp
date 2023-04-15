@@ -25,6 +25,7 @@ MAP_MANAGER::MAP_MANAGER(const float& filter_corner, const float& filter_surf){
   downSizeFilterCorner.setLeafSize(0.4, 0.4, 0.4);
   downSizeFilterSurf.setLeafSize(0.4, 0.4, 0.4);
   downSizeFilterNonFeature.setLeafSize(0.4, 0.4, 0.4);
+  downSizeFilterFullCloudMapped.setLeafSize(0.4, 0.4, 0.4);
 }
 
 size_t MAP_MANAGER::ToIndex(int i, int j, int k)  {
@@ -538,28 +539,77 @@ void MAP_MANAGER::MapMove(const Eigen::Matrix4d& transformTobeMapped){
 
 }
 
-size_t MAP_MANAGER::FindUsedCornerMap(const PointType *p,int a,int b, int c)
-{
-    int cubeI = int((p->x + 25.0) / 50.0) + c;
-    int cubeJ = int((p->y + 25.0) / 50.0) + a;
-    int cubeK = int((p->z + 25.0) / 50.0) + b;
+bool MAP_MANAGER::saveMapService(lio_livox::save_mapRequest& req, lio_livox::save_mapResponse& res) {
+  std::string saveDir;
+  if(req.destination.empty()) {
+    saveDir = std::getenv("HOME") + std::string("/PCDMaps/lio_livox_mid_360/");
+  } else {
+    saveDir = std::getenv("HOME") + req.destination;
+  }
+  // use if to avoid warning of system-returned-value-unused
+  ROS_INFO_STREAM("save point cloud maps to directory : " << saveDir);
+  if(system((std::string("mkdir -p ") + saveDir).c_str()));
+  if(system((std::string("mkdir -p ") + saveDir + "corner/").c_str()));
+  if(system((std::string("mkdir -p ") + saveDir + "surf/").c_str()));
+  if(system((std::string("mkdir -p ") + saveDir + "non_feature/").c_str()));
+  if(system((std::string("mkdir -p ") + saveDir + "full_cloud_mapped/").c_str()));
+  // for (int i = 0; i < laserCloudNum; i++) {
+  //   if(!laserCloudCornerArray[i]->empty()) {
+  //     pcl::io::savePCDFileBinary(saveDir + "corner/" + std::to_string(i) + ".pcd", *laserCloudCornerArray[i]);
+  //   }
+  //   if(!laserCloudSurfArray[i]->empty()) {
+  //     pcl::io::savePCDFileBinary(saveDir + "surf/" + std::to_string(i) + ".pcd", *laserCloudSurfArray[i]);
+  //   }
+  //   if(!laserCloudNonFeatureArray[i]->empty()) {
+  //     pcl::io::savePCDFileBinary(saveDir + "non_feature/" + std::to_string(i) + ".pcd", *laserCloudNonFeatureArray[i]);
+  //   }
+  // }
+  pcl::PointCloud<PointType>::Ptr fullCloudMappedDS(new pcl::PointCloud<PointType>());
+  for(size_t i = 0, sz = vFullCloudMapped.size(); i < sz; ++i) {
+    downSizeFilterFullCloudMapped.setInputCloud(vFullCloudMapped[i]);
+    downSizeFilterFullCloudMapped.filter(*fullCloudMappedDS);
+    pcl::io::savePCDFileBinary(saveDir + "full_cloud_mapped/" + std::to_string(i) + ".pcd", *fullCloudMappedDS);
+  }
+  return true;
+}
+void MAP_MANAGER::setServiceServer(ros::NodeHandle& nh, const std::string &topic) {
+  srvSaveMap = nh.advertiseService(topic, &MAP_MANAGER::saveMapService, this);
+}
 
-    size_t cubeInd = 0;
+void MAP_MANAGER::visualizeGlobalMapThread() {
+  // 更新频率设置为0.2hz
+  ros::Rate rate(0.2);
+  while (ros::ok()){
+      rate.sleep();
+      ROS_INFO("visualizeGlobalMapThread......");
+  }
+  // ros 结束后保存地图
+  lio_livox::save_mapRequest  req;
+  lio_livox::save_mapResponse res;
+  if(!saveMapService(req, res)){
+    ROS_INFO("Failed to save map......");
+  }
+}
+size_t MAP_MANAGER::FindUsedCornerMap(const PointType* p, int a, int b, int c) {
+  int cubeI = int((p->x + 25.0) / 50.0) + c;
+  int cubeJ = int((p->y + 25.0) / 50.0) + a;
+  int cubeK = int((p->z + 25.0) / 50.0) + b;
 
-    if (p->x + 25.0 < 0) cubeI--;
-    if (p->y + 25.0 < 0) cubeJ--;
-    if (p->z + 25.0 < 0) cubeK--;
+  size_t cubeInd = 0;
 
-    if (cubeI >= 0 && cubeI < laserCloudDepth &&
-        cubeJ >= 0 && cubeJ < laserCloudWidth &&
-        cubeK >= 0 && cubeK < laserCloudHeight) {
-      cubeInd = ToIndex(cubeI, cubeJ, cubeK);
-    }
-    else{
-      cubeInd = 5000;
-    }
+  if (p->x + 25.0 < 0) cubeI--;
+  if (p->y + 25.0 < 0) cubeJ--;
+  if (p->z + 25.0 < 0) cubeK--;
 
-    return cubeInd;  
+  if (cubeI >= 0 && cubeI < laserCloudDepth &&
+      cubeJ >= 0 && cubeJ < laserCloudWidth &&
+      cubeK >= 0 && cubeK < laserCloudHeight) {
+    cubeInd = ToIndex(cubeI, cubeJ, cubeK);
+  } else {
+    cubeInd = 5000;
+  }
+
+  return cubeInd;
 }
 size_t MAP_MANAGER::FindUsedSurfMap(const PointType *p,int a,int b, int c)
 {

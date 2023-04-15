@@ -38,11 +38,18 @@ include_directories(include
         	    ${CERES_INCLUDE_DIRS}
 		    ${OpenCV_INCLUDE_DIRS}
         	    ${SUITESPARSE_INCLUDE_DIRS})
+##################
+## ROS services ##
+##################
+add_service_files(
+  DIRECTORY srv
+  FILES
+  save_map.srv
+)
 
 ##################
 ## ROS messages ##
 ##################
-
 generate_messages(DEPENDENCIES std_msgs)
 
 catkin_package(CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy std_msgs message_runtime 
@@ -63,6 +70,4 @@ add_executable (PoseEstimation
 		src/lio/ceresfunc.cpp 
 		src/lio/Map_Manager.cpp)
 target_link_libraries(PoseEstimation ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
-
-
 

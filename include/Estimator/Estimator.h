@@ -220,6 +220,9 @@ public:
 	pcl::PointCloud<PointType>::Ptr get_nonfeature_map(){
 		return map_manager->get_nonfeature_map();
 	}
+	MAP_MANAGER* get_map_manager(){
+		return map_manager;
+	}
 	void MapIncrementLocal(const pcl::PointCloud<PointType>::Ptr& laserCloudCornerStack,
 						   const pcl::PointCloud<PointType>::Ptr& laserCloudSurfStack,
 						   const pcl::PointCloud<PointType>::Ptr& laserCloudNonFeatureStack,

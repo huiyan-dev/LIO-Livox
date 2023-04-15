@@ -1,4 +1,5 @@
 #include "Estimator/Estimator.h"
+#include "PoseEstimation.h"
 typedef pcl::PointXYZINormal PointType;
 
 int WINDOWSIZE;
@@ -13,6 +14,7 @@ ros::Publisher pubFullLaserCloud;
 tf::StampedTransform laserOdometryTrans;
 tf::TransformBroadcaster* tfBroadcaster;
 ros::Publisher pubGps;
+ros::ServiceServer srvSaveMap;
 
 bool newfullCloud = false;
 
@@ -371,6 +373,8 @@ void process(){
 	Eigen::Vector3d delta_tb = Eigen::Vector3d::Zero();
   std::vector<sensor_msgs::ImuConstPtr> vimuMsg;
   while(ros::ok()){
+    // 安全访问 _mutexLidarQueue 队列的点云数据（mid-360是直接用的整个点云，提取的特征点暂时没用上），
+    // 如果有新数据就赋值 newfullCloud = true 进行位姿估计，否则当前循环结束
     newfullCloud = false;
     laserCloudFullRes.reset(new pcl::PointCloud<PointType>());
 	  std::unique_lock<std::mutex> lock_lidar(_mutexLidarQueue);
@@ -453,7 +457,7 @@ void process(){
 			    delta_tl = Qwlpre.conjugate() * (Pwl - Pwlpre);
 			    delta_Rb = dQ.toRotationMatrix();
 			    delta_tb = dP;
-
+          // 正常运行中 lidarFrameList 长度为 3
 			    lidarFrameList->push_back(lidarFrame);
 			    lidarFrameList->pop_front();
 			    lidar_list = lidarFrameList;
@@ -508,9 +512,12 @@ void process(){
         MAP_MANAGER::pointAssociateToMap(&lidar_list->front().laserCloud->points[i], &temp_point, transformTobeMapped);
         laserCloudAfterEstimate->push_back(temp_point);
       }
+      // for save full cloud after mapping
+      estimator->get_map_manager()->pushFullCloudMapped(laserCloudAfterEstimate);
+      // pub for rviz
       sensor_msgs::PointCloud2 laserCloudMsg;
       pcl::toROSMsg(*laserCloudAfterEstimate, laserCloudMsg);
-      laserCloudMsg.header.frame_id = "/world";
+      laserCloudMsg.header.frame_id = "world";
       laserCloudMsg.header.stamp.fromSec(lidar_list->front().timeStamp);
       pubFullLaserCloud.publish(laserCloudMsg);
 
@@ -563,6 +570,11 @@ void process(){
 
     }
   }
+
+}
+bool saveMapService(lio_livox::save_mapRequest& req, lio_livox::save_mapResponse& res) {
+
+  return true;
 }
 
 int main(int argc, char** argv)
@@ -605,16 +617,19 @@ int main(int argc, char** argv)
   pubLaserOdometry = nodeHandler.advertise<nav_msgs::Odometry> ("/livox_odometry_mapped", 5);
   pubLaserOdometryPath = nodeHandler.advertise<nav_msgs::Path> ("/livox_odometry_path_mapped", 5);
 	pubGps = nodeHandler.advertise<sensor_msgs::NavSatFix>("/lidar", 1000);
-
   tfBroadcaster = new tf::TransformBroadcaster();
 
   laserCloudFullRes.reset(new pcl::PointCloud<PointType>);
   estimator = new Estimator(filter_parameter_corner, filter_parameter_surf);
+  // init save_map service
+  estimator->get_map_manager()->setServiceServer(nodeHandler, "lio_livox/save_map");
 	lidarFrameList.reset(new std::list<Estimator::LidarFrame>);
 
   std::thread thread_process{process};
+  std::thread visualizeMapThread(&MAP_MANAGER::visualizeGlobalMapThread, estimator->get_map_manager());
   ros::spin();
-
+  thread_process.join();
+  visualizeMapThread.join();
   return 0;
 }
 
