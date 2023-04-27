@@ -124,9 +124,9 @@ bool fetchImuMsgs(double startTime, double endTime, std::vector<sensor_msgs::Imu
       _imuMsgQueue.pop();
       if(time == endTime) break;
     } else{
-      if(time<=startTime){
+      if(time<=startTime){ // IMU数据时间戳 time 小于 startTime , 直接舍弃
         _imuMsgQueue.pop();
-      } else{
+      } else{ // IMU数据时间戳 time 大于 endTime (Lidar时间戳在两帧IMU数据之间), 保证是正常的IMU数据后线性插值后加入到队列
         double dt_1 = endTime - current_time;
         double dt_2 = time - endTime;
         ROS_ASSERT(dt_1 >= 0);
@@ -170,6 +170,7 @@ void RemoveLidarDistortion(pcl::PointCloud<PointType>::Ptr& cloud,
     cloud->points[i].x = _po(0);
     cloud->points[i].y = _po(1);
     cloud->points[i].z = _po(2);
+    // normal_x 在点云数据中原来存的是 i / PointsNum, 代表了时间的占比，作为插值比例，去畸变之后需要编程 1.0 代表已经
     cloud->points[i].normal_x = 1.0;
   }
 }
@@ -571,10 +572,6 @@ void process(){
     }
   }
 
-}
-bool saveMapService(lio_livox::save_mapRequest& req, lio_livox::save_mapResponse& res) {
-
-  return true;
 }
 
 int main(int argc, char** argv)

@@ -175,6 +175,7 @@ private:
     // ros service
     ros::ServiceServer srvSaveMap;
     std::vector<pcl::PointCloud<PointType>::Ptr> vFullCloudMapped;
+    bool filter_map_save;
 };
 
 #endif //LIO_LIVOX_MAP_MANAGER_H

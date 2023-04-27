@@ -25,7 +25,7 @@ MAP_MANAGER::MAP_MANAGER(const float& filter_corner, const float& filter_surf){
   downSizeFilterCorner.setLeafSize(0.4, 0.4, 0.4);
   downSizeFilterSurf.setLeafSize(0.4, 0.4, 0.4);
   downSizeFilterNonFeature.setLeafSize(0.4, 0.4, 0.4);
-  downSizeFilterFullCloudMapped.setLeafSize(0.4, 0.4, 0.4);
+  downSizeFilterFullCloudMapped.setLeafSize(1.0, 1.0, 1.0);
 }
 
 size_t MAP_MANAGER::ToIndex(int i, int j, int k)  {
@@ -547,7 +547,7 @@ bool MAP_MANAGER::saveMapService(lio_livox::save_mapRequest& req, lio_livox::sav
     saveDir = std::getenv("HOME") + req.destination;
   }
   // use if to avoid warning of system-returned-value-unused
-  ROS_INFO_STREAM("save point cloud maps to directory : " << saveDir);
+  std::cout << "Save point cloud maps to directory : " << saveDir << std::endl;
   if(system((std::string("mkdir -p ") + saveDir).c_str()));
   if(system((std::string("mkdir -p ") + saveDir + "corner/").c_str()));
   if(system((std::string("mkdir -p ") + saveDir + "surf/").c_str()));
@@ -564,16 +564,31 @@ bool MAP_MANAGER::saveMapService(lio_livox::save_mapRequest& req, lio_livox::sav
   //     pcl::io::savePCDFileBinary(saveDir + "non_feature/" + std::to_string(i) + ".pcd", *laserCloudNonFeatureArray[i]);
   //   }
   // }
+  if(filter_map_save) {
+    std::cout << "Leaf size (xyz) of downSizeFilterFullCloudMapped : " 
+              << downSizeFilterFullCloudMapped.getLeafSize().transpose() << std::endl;
+  }
   pcl::PointCloud<PointType>::Ptr fullCloudMappedDS(new pcl::PointCloud<PointType>());
   for(size_t i = 0, sz = vFullCloudMapped.size(); i < sz; ++i) {
-    downSizeFilterFullCloudMapped.setInputCloud(vFullCloudMapped[i]);
-    downSizeFilterFullCloudMapped.filter(*fullCloudMappedDS);
-    pcl::io::savePCDFileBinary(saveDir + "full_cloud_mapped/" + std::to_string(i) + ".pcd", *fullCloudMappedDS);
+    std::cout << "Saving " << i << " full cloud mapped ..." << std::endl;
+    if(filter_map_save) {
+      downSizeFilterFullCloudMapped.setInputCloud(vFullCloudMapped[i]);
+      downSizeFilterFullCloudMapped.filter(*fullCloudMappedDS);
+      pcl::io::savePCDFileBinary(saveDir + "full_cloud_mapped/" + std::to_string(i) + ".pcd", *fullCloudMappedDS);
+    } else {
+      pcl::io::savePCDFileBinary(saveDir + "full_cloud_mapped/" + std::to_string(i) + ".pcd", *vFullCloudMapped[i]);
+    }
   }
+  std::cout << "Saving full cloud mapped done!" << std::endl;
   return true;
 }
 void MAP_MANAGER::setServiceServer(ros::NodeHandle& nh, const std::string &topic) {
   srvSaveMap = nh.advertiseService(topic, &MAP_MANAGER::saveMapService, this);
+  double voxel_size;
+  nh.getParam("filter_parameter_map_save", voxel_size);
+  nh.getParam("filter_map_save", filter_map_save);
+  // default is 1.0 in constructor
+  downSizeFilterFullCloudMapped.setLeafSize(voxel_size, voxel_size, voxel_size);
 }
 
 void MAP_MANAGER::visualizeGlobalMapThread() {
